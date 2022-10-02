@@ -1,0 +1,35 @@
+#root {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem;
+    text-align: center;
+}
+
+
+
+
+.board {
+    display: flex;
+    /*flex-direction: row;*/
+    border: 16px ridge grey;
+}
+
+.board-row{
+    flex-direction: row;
+}
+
+.board-square {
+    width: 64px;
+    height: 64px;
+    color: red;
+}
+
+.square-black {
+    background-color: black;
+    border: 4px ridge darkgray;
+}
+
+.square-white {
+    background-color: white;
+    border: 4px ridge darkgray;
+}
