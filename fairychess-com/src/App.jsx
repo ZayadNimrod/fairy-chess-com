@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
 import './App.css'
 
 
-function range(x){
+function range(x) {
     var r = new Array(x);
-    for (let i=0;i<x;i++){
-        r[i]=i;
+    for (let i = 0; i < x; i++) {
+        r[i] = i;
     }
     return r;
 }
@@ -14,15 +13,18 @@ function range(x){
 
 
 
-function Square(props){
-    return( 
-    <div 
-        className = {"board-square "+(((props.x+props.y) % 2) ? "square-black" : "square-white")}        
-    >
+function Square(props) {
 
-        {props.piece?props.piece.type +"\n(" +props.piece.player+")":""}
 
-    </div> 
+    return (
+        <div
+            className={"board-square " + (((props.x + props.y) % 2) ? "square-black" : "square-white")}
+            onClick={() => props.handleClick()}
+        >
+
+            {props.piece ? props.piece.type + "\n(" + props.piece.player + ")" : ""}
+
+        </div>
     )
 }
 
@@ -30,18 +32,23 @@ function Square(props){
 
 
 
-function Board(props){
-    
+function Board(props) {
+
     const b = range(props.height).map((e, y) => {
         return (
             <div className='board-row' key={y}>
                 {
-                   range(props.width).map((e, x) => {
+                    range(props.width).map((e, x) => {
+                        const p = props.pieces.find(p => (p.x == x && p.y == y));
 
-                        const p = props.boardState.pieces.find(p => (p.x ==x && p.y==y));
-                      
                         return (
-                            <Square key = {props.width * y+x} x = {x} y={y} piece = {p}/>
+                            <Square
+                                key={props.width * y + x}
+                                x={x}
+                                y={y}
+                                piece={p}
+                                handleClick={()=> props.handleClick(x, y)}
+                            />
                         );
                     }, this)
                 }
@@ -113,13 +120,67 @@ function App() {
 
     const gameData = JSON.parse(data);
 
-    const gameState = {
-        pieces: gameData.pieces
+
+    const pieceDefs = gameData.pieceDefs;
+
+    const [pieces, setPieces] = useState(gameData.pieces);
+    const [currentPlayer, setCurrentPlayer] = useState("white");
+    const [selectedPiece, setSelectedPiece] = useState(null);
+
+
+
+
+    const handleClick = (x, y) => {
+        if (selectedPiece) {
+            //selecting a place to move the piece to
+            const pieceAtLocation = pieces.find(p => (p.x == x && p.y == y));
+            if(pieceAtLocation){
+                if (pieceAtLocation.player == selectedPiece.player){
+                    //we cannot make this move under any circumstance, deselect the piece
+                    setSelectedPiece(null);
+                    return;
+                }else{
+                    //TODO
+                    //check that we can capture the piece at this location
+                }
+            }else{
+                //TODO
+                //test that we can move to this location
+                var piecesCopy = pieces.slice(0,pieces.length);
+                piecesCopy= piecesCopy.filter((p)=> p.x !=selectedPiece.x || p.y !=selectedPiece.y );
+                piecesCopy.push(
+                    {
+                        type: selectedPiece.type,
+                        player: selectedPiece.player,
+                        x: x,
+                        y:y                        
+                    }
+                )
+                setPieces(piecesCopy);
+                setSelectedPiece(null);
+            }
+
+
+        } else {
+            //We are selecting a piece to move
+            const pieceAtLocation = pieces.find(p => (p.x == x && p.y == y && p.player == currentPlayer));
+            if (pieceAtLocation) {
+                setSelectedPiece(pieceAtLocation);
+            } else {
+                //if no piece at location, then this click does nothing
+                return;
+            }
+        }
     };
 
     return (
-        <div className="App">
-            <Board width = {gameData.width}  height = {gameData.height} boardState = {gameState}/>
+        <div >
+            <Board
+                width={gameData.width}
+                height={gameData.height}
+                pieces={pieces}
+                handleClick={handleClick}
+            />
         </div>
     )
 }
