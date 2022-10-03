@@ -6,8 +6,6 @@
 }
 
 
-
-
 .board {
     display: flex;
     /*flex-direction: row;*/
@@ -32,4 +30,9 @@
 .square-white {
     background-color: white;
     border: 4px ridge darkgray;
+}
+
+
+.selected {
+    border-color: greenyellow;
 }

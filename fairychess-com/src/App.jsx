@@ -18,7 +18,7 @@ function Square(props) {
 
     return (
         <div
-            className={"board-square " + (((props.x + props.y) % 2) ? "square-black" : "square-white")}
+            className={"board-square " + (((props.x + props.y) % 2) ? "square-black" : "square-white") +" " +((props.selected)? "selected ":" ")}
             onClick={() => props.handleClick()}
         >
 
@@ -40,7 +40,6 @@ function Board(props) {
                 {
                     range(props.width).map((e, x) => {
                         const p = props.pieces.find(p => (p.x == x && p.y == y));
-
                         return (
                             <Square
                                 key={props.width * y + x}
@@ -48,6 +47,7 @@ function Board(props) {
                                 y={y}
                                 piece={p}
                                 handleClick={()=> props.handleClick(x, y)}
+                                selected = {p && p == props.selected}
                             />
                         );
                     }, this)
@@ -157,7 +157,7 @@ function App() {
                     }
                 )
                 setPieces(piecesCopy);
-                setSelectedPiece(null);
+                setSelectedPiece(null);//TODO force a re-render?
             }
 
 
@@ -180,6 +180,7 @@ function App() {
                 height={gameData.height}
                 pieces={pieces}
                 handleClick={handleClick}
+                selected = {selectedPiece}
             />
         </div>
     )
