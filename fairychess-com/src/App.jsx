@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import './App.css'
-
+import { useState, useEffect } from 'react';
+import './App.css';
+import init, { Board, initSync } from "fairychess-web";
 
 function range(x) {
     var r = new Array(x);
@@ -12,13 +12,12 @@ function range(x) {
 
 
 
-
 function Square(props) {
 
 
     return (
         <div
-            className={"board-square " + (((props.x + props.y) % 2) ? "square-black" : "square-white") +" " +((props.selected)? "selected ":" ")}
+            className={"board-square " + (((props.x + props.y) % 2) ? "square-black" : "square-white") + " " + ((props.selected) ? "selected " : " ")}
             onClick={() => props.handleClick()}
         >
 
@@ -32,7 +31,7 @@ function Square(props) {
 
 
 
-function Board(props) {
+function BoardDisplay(props) {
 
     const b = range(props.height).map((e, y) => {
         return (
@@ -46,8 +45,8 @@ function Board(props) {
                                 x={x}
                                 y={y}
                                 piece={p}
-                                handleClick={()=> props.handleClick(x, y)}
-                                selected = {p && p == props.selected}
+                                handleClick={() => props.handleClick(x, y)}
+                                selected={p && p == props.selected}
                             />
                         );
                     }, this)
@@ -64,6 +63,9 @@ function Board(props) {
 
 
 function App() {
+
+
+
     const data = `{
         "width": 8,
         "height":8,
@@ -118,72 +120,142 @@ function App() {
         ]
     }`;
 
+
     const gameData = JSON.parse(data);
 
 
     const pieceDefs = gameData.pieceDefs;
 
-    const [pieces, setPieces] = useState(gameData.pieces);
-    const [currentPlayer, setCurrentPlayer] = useState("white");
+    const pcsProcessed = gameData.pieces.map(p => {
+        return ({
+            type: pieceDefs.findIndex(d => p.type == d.name),
+            player: gameData.pieces.findIndex(d => d.player == p.player),  //TODO black here maps to 2 becuase it is first seen in the THIRD piece - fix this!
+            x: p.x,
+            y: p.y,
+        })
+    });
+
+
+
+    const [pieces, setPieces] = useState(pcsProcessed);
+    const [currentPlayer, setCurrentPlayer] = useState(0);
     const [selectedPiece, setSelectedPiece] = useState(null);
 
 
 
+    const [wasmRef, setWasmRef] = useState(null);
+    const [bufferPointer, setBufferPointer] = useState(null);
 
-    const handleClick = (x, y) => {
-        if (selectedPiece) {
-            //selecting a place to move the piece to
-            const pieceAtLocation = pieces.find(p => (p.x == x && p.y == y));
-            if(pieceAtLocation){
-                if (pieceAtLocation.player == selectedPiece.player){
-                    //we cannot make this move under any circumstance, deselect the piece
-                    setSelectedPiece(null);
-                    return;
-                }else{
-                    //TODO
-                    //check that we can capture the piece at this location
-                }
-            }else{
-                //TODO
-                //test that we can move to this location
-                var piecesCopy = pieces.slice(0,pieces.length);
-                piecesCopy= piecesCopy.filter((p)=> p.x !=selectedPiece.x || p.y !=selectedPiece.y );
-                piecesCopy.push(
-                    {
-                        type: selectedPiece.type,
-                        player: selectedPiece.player,
-                        x: x,
-                        y:y                        
-                    }
-                )
-                setPieces(piecesCopy);
-                setSelectedPiece(null);//TODO force a re-render?
+
+
+    useEffect(() => {
+        init().then(
+            (wr) => {
+                //console.log(wr);
+                setWasmRef(wr);
+                setBufferPointer(Board.new(gameData.width, gameData.height, currentPlayer, pieces.length));
+
             }
+        );
+    }, []);
 
+
+    const handleClick = function () {
+        if (wasmRef != null) {
+            //TODO this function can be optimised give that if we moved a piece at index i, then the first (i-1) elements are unchanged in newPiecesList and the old one
+            const updateBoardBuffer = (newPiecesList) => {
+                const numberOfPieces = newPiecesList.length;
+                //TODO update the number of pieces on the board structure
+                const pieceSize = 4;
+
+                const boardBuffer = new Uint8Array(wasmRef.memory.buffer, bufferPointer, numberOfPieces * pieceSize);
+
+                for (let i = 0; i < newPiecesList.length; i++) {
+                    const baseIndex = i * pieceSize;
+                    const newPiece = newPiecesList[i];
+                    boardBuffer[baseIndex] = newPiece.type;
+                    boardBuffer[baseIndex + 1] = newPiece.player;
+                    boardBuffer[baseIndex + 2] = newPiece.x;
+                    boardBuffer[baseIndex + 3] = newPiece.y;
+                }
+
+                //log the shared buffer
+                console.log(Array.apply([], boardBuffer).join(","));
+
+            };
+
+            //TODO only do this the FIRST time we enter this block, rather than every render!
+            updateBoardBuffer(pieces);
+
+            const handleClick = (x, y) => {
+                if (selectedPiece) {
+                    //selecting a place to move the piece to
+                    const pieceAtLocation = pieces.find(p => (p.x == x && p.y == y));
+                    if (pieceAtLocation) {
+                        if (pieceAtLocation.player == selectedPiece.player) {
+                            //we cannot make this move under any circumstance, deselect the piece
+                            setSelectedPiece(null);
+                            return;
+                        } else {
+                            //TODO
+                            //check that we can capture the piece at this location
+                        }
+                    } else {
+                        //TODO
+                        //test that we can move to this location
+                        var piecesCopy = pieces.slice(0, pieces.length);
+                        piecesCopy = piecesCopy.filter((p) => p.x != selectedPiece.x || p.y != selectedPiece.y);
+                        piecesCopy.push(
+                            {
+                                type: selectedPiece.type,
+                                player: selectedPiece.player,
+                                x: x,
+                                y: y
+                            }
+                        )
+                        setPieces(piecesCopy);
+                        setSelectedPiece(null);//TODO force a re-render?
+
+                        updateBoardBuffer(piecesCopy, gameData.width, gameData.height);
+                    }
+
+
+                } else {
+                    //We are selecting a piece to move
+                    const pieceAtLocation = pieces.find(p => (p.x == x && p.y == y && p.player == currentPlayer));
+                    if (pieceAtLocation) {
+                        setSelectedPiece(pieceAtLocation);
+                    } else {
+                        //if no piece at location, then this click does nothing
+                        return;
+                    }
+                }
+            };
+
+            return handleClick;
 
         } else {
-            //We are selecting a piece to move
-            const pieceAtLocation = pieces.find(p => (p.x == x && p.y == y && p.player == currentPlayer));
-            if (pieceAtLocation) {
-                setSelectedPiece(pieceAtLocation);
-            } else {
-                //if no piece at location, then this click does nothing
-                return;
-            }
+            //move library hasn't loaded yet, so we block interaction by making the click handler a dummy
+            return () => { };
         }
-    };
+    }();
+
 
     return (
-        <div >
-            <Board
+        <div>
+            <BoardDisplay
                 width={gameData.width}
                 height={gameData.height}
                 pieces={pieces}
                 handleClick={handleClick}
-                selected = {selectedPiece}
+                selected={selectedPiece}
             />
         </div>
     )
+
+
+
+
 }
 
 export default App
