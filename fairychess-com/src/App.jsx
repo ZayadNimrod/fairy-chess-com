@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import './App.css';
-import init, { Board, initSync } from "fairychess-web";
+import init, { Board ,Piece, MoveGraph, Path,check_move} from "fairychess-web";
 
 function range(x) {
     var r = new Array(x);
@@ -90,7 +90,7 @@ function App() {
             {
                 "type": "pawn",
                 "player":"white",
-                "x": 6,
+                "x": 2,
                 "y": 4
             },
             {
@@ -124,16 +124,17 @@ function App() {
     const gameData = JSON.parse(data);
 
 
-    const pieceDefs = gameData.pieceDefs;
 
+    //TODO I thnk this can be moved down into the "after WASM loaded" function
     const pcsProcessed = gameData.pieces.map(p => {
         return ({
-            type: pieceDefs.findIndex(d => p.type == d.name),
+            type: gameData.pieceDefs.findIndex(d => p.type == d.name),
             player: gameData.pieces.findIndex(d => d.player == p.player),  //TODO black here maps to 2 becuase it is first seen in the THIRD piece - fix this!
             x: p.x,
             y: p.y,
         })
     });
+
 
 
 
@@ -145,15 +146,40 @@ function App() {
 
     const [wasmRef, setWasmRef] = useState(null);
     const [bufferPointer, setBufferPointer] = useState(null);
+    const [pieceDefs, setPieceDefs] = useState(null);
 
 
 
+    //initilaise the WASM libraray and create the shared memory
     useEffect(() => {
         init().then(
             (wr) => {
                 //console.log(wr);
                 setWasmRef(wr);
                 setBufferPointer(Board.new(gameData.width, gameData.height, currentPlayer, pieces.length));
+                const moveDefToPtr=function(d){
+                    if (d==null){
+                        return null;
+                    }else{
+                        const p = new MoveGraph(d);
+                        return p;
+                    }
+                };
+
+                const pieceDefsArray = gameData.pieceDefs.map(
+                    d => {
+                        return ( {
+                        name: d.name,
+                        move: moveDefToPtr(d.move),
+                        capture: moveDefToPtr(d.capture)
+                        })
+                    }
+                );
+                console.log(pieceDefsArray);
+
+                setPieceDefs(pieceDefsArray);
+
+
 
             }
         );
@@ -201,22 +227,36 @@ function App() {
                             //check that we can capture the piece at this location
                         }
                     } else {
-                        //TODO
-                        //test that we can move to this location
-                        var piecesCopy = pieces.slice(0, pieces.length);
-                        piecesCopy = piecesCopy.filter((p) => p.x != selectedPiece.x || p.y != selectedPiece.y);
-                        piecesCopy.push(
-                            {
-                                type: selectedPiece.type,
-                                player: selectedPiece.player,
-                                x: x,
-                                y: y
-                            }
-                        )
-                        setPieces(piecesCopy);
-                        setSelectedPiece(null);//TODO force a re-render?
+                        //TODO test that we can move to this location
+                        console.log(pieceDefs[selectedPiece.type].move);
+                        const path = check_move(pieceDefs[selectedPiece.type].move,bufferPointer,selectedPiece.x,selectedPiece.y,x,y);
+                        console.log(path);
+                        console.log(path.num_moves());
+                        if (path.num_moves()>0 ){
+                            //the move is valid
+                            //TODO an animation that shows the path?
+                            var piecesCopy = pieces.slice(0, pieces.length);
+                            piecesCopy = piecesCopy.filter((p) => p.x != selectedPiece.x || p.y != selectedPiece.y);
+                            piecesCopy.push(
+                                {
+                                    type: selectedPiece.type,
+                                    player: selectedPiece.player,
+                                    x: x,
+                                    y: y
+                                }
+                            )
+                            setPieces(piecesCopy);
+                            setSelectedPiece(null);//TODO force a re-render?
+    
+                            updateBoardBuffer(piecesCopy, gameData.width, gameData.height);
 
-                        updateBoardBuffer(piecesCopy, gameData.width, gameData.height);
+                        }else{
+                            //move was invalid
+                            setSelectedPiece(null);
+                            return;
+
+                        }
+                        
                     }
 
 
@@ -226,7 +266,7 @@ function App() {
                     if (pieceAtLocation) {
                         setSelectedPiece(pieceAtLocation);
                     } else {
-                        //if no piece at location, then this click does nothing
+                        //if no piece at location, then this click does nothing!                        
                         return;
                     }
                 }

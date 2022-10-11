@@ -7,31 +7,65 @@ use wasm_bindgen::prelude::*;
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[wasm_bindgen]
-extern "C" {
+extern {
     pub fn alert(s: &str);
 }
 
-//#[wasm_bindgen]
+#[wasm_bindgen]
 pub fn check_move(
-    piece: &fairy_chess::movespec::MoveGraph,
+    piece: &MoveGraph,
     board: &Board,
-    start_position: (i32, i32),
-    target_position: (i32, i32),
-) -> Option<Vec<(i32, i32)>> {
-    fairy_chess::check_move(piece, board, start_position, target_position)
+    start_position_x: i32,
+    start_position_y: i32,
+    target_position_x: i32,
+    target_position_y: i32,
+) -> Path {
+    Path{
+        path:  fairy_chess::check_move(&piece.graph, board, (start_position_x,start_position_y), (target_position_x,target_position_y))
+    }
 }
 
-/*
-//#[wasm_bindgen]
-pub fn create_piece(s: &str) -> *const fairy_chess::movespec::MoveGraph {
-    fairy_chess::create_piece(s)
-        //.unwrap_or_else(|e| {
-        //    alert(&format!("error in piece defintion!{}", e));
-        //    fairy_chess::create_piece("[1,1]").unwrap_unchecked()
-        //})
-        //.as_ptr()
-        ?
-}*/
+#[wasm_bindgen]
+pub struct Path{
+    path: Option<Vec<(i32, i32)>>,
+}
+
+#[wasm_bindgen]
+impl Path{
+
+    pub fn num_moves(&self)-> usize{
+        return self.path.as_ref().map(|a|{a.len()}).unwrap_or(0);
+    }
+
+    pub fn get_x(&self, idx:usize)->i32{
+        //TODO error handling!!!
+        return self.path.as_ref().map(|v|{v[idx]}).map(|(x,y)|{x}).unwrap(); 
+    }
+
+    pub fn get_y(&self, idx:usize)->i32{
+        //TODO error handling!!!
+        return self.path.as_ref().map(|v|{v[idx]}).map(|(x,y)|{y}).unwrap(); 
+    }
+}
+
+#[wasm_bindgen]
+pub struct MoveGraph{
+    graph: fairy_chess::movespec::MoveGraph,
+}
+
+#[wasm_bindgen]
+impl MoveGraph{
+    #[wasm_bindgen(constructor)]
+    pub fn new(s:&str)-> MoveGraph{
+        //TODO error handling!!!
+        MoveGraph{
+            graph:
+            fairy_chess::movespec::MoveGraph::from(fairy_chess::create_piece(s).unwrap())
+        } 
+    }
+}
+
+
 
 #[wasm_bindgen]
 pub struct Board {
