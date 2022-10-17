@@ -35,6 +35,8 @@ function Square(props: {
 
             {props.piece ? props.pieceDefs[props.piece.type].name + "\n(" + props.piece.player + ")" : ""}
 
+
+
         </div>
     )
 }
@@ -52,11 +54,12 @@ function BoardDisplay(props: {
     pieceDefs: PieceDef[],
 }) {
 
-    const b = range(props.height).map((e, y) => {
+    //TODO just realised I'm redering skewed...
+    const b = range(props.height).map((y, i) => {
         return (
             <div className='board-row' key={y}>
                 {
-                    range(props.width).map((e, x) => {
+                    range(props.width).reverse().map((x, j) => {
 
                         const p: Piece | null = function () {
                             var p_temp: Piece | undefined = props.pieces.find(p => (p.x === x && p.y === y));
@@ -126,24 +129,24 @@ function App() {
     useEffect(() => {
         init().then(
             (wr) => {
-
+                //TODO needs diagonals in king def
                 const data = `{
                     "width": 8,
                     "height":8,
                     "pieceDefs": [
                         {
                             "name": "pawn",
-                            "move": "[1,0]",
+                            "move": "[0,1]",
                             "capture": "[1,1]|"
                         },
                         {
                             "name": "longpawn",
-                            "move": "[2,0]",
+                            "move": "[0,2]",
                             "capture": "[2,2]|"
                         },
                         {
                             "name": "king",
-                            "move": "[1,0]|-/",
+                            "move": "[1,0]|-/", 
                             "capture": "[1,0]|-/"
                         }
                     ],
@@ -151,7 +154,7 @@ function App() {
                         {
                             "type": "pawn",
                             "player":"white",
-                            "x": 2,
+                            "x": 3,
                             "y": 4
                         },
                         {
@@ -246,6 +249,7 @@ function App() {
         const updateBoardBuffer = (newPiecesList: Piece[]) => {
             const numberOfPieces = newPiecesList.length;
             //TODO update the number of pieces on the board structure
+            bufferPointer!.set_num_pieces(numberOfPieces);
             const pieceSize = 4;
 
             const boardBuffer = new Uint8Array(wasmRef.memory.buffer, bufferPointer!.pieces(), numberOfPieces * pieceSize);
@@ -260,7 +264,7 @@ function App() {
             }
 
             //log the shared buffer
-            //console.log(Array.apply([], boardBuffer).join(","));
+            console.log(boardBuffer.join());
 
         };
 
@@ -278,8 +282,42 @@ function App() {
                         setSelectedPiece(null);
                         return;
                     } else {
-                        //TODO
+
                         //check that we can capture the piece at this location
+                        const capMove = pieceDefs[selectedPiece.type].capture;
+                        if (capMove != null) {
+                            //test the piece can capture at to this location
+                            console.log("capping");
+                            console.log(capMove);
+                            const path = check_move(capMove, bufferPointer!, selectedPiece.x, selectedPiece.y, x, y);
+                            console.log(path);
+                            console.log(path.num_moves());
+
+                            //TODO an animation that shows the path?
+                            var piecesCopy = pieces.slice(0, pieces.length);
+                            
+                            console.log (piecesCopy);
+                            piecesCopy = piecesCopy.filter((p) => (!(p.x == selectedPiece.x && p.y == selectedPiece.y) && !(p.x == pieceAtLocation.x && p.y == pieceAtLocation.y)));
+                            piecesCopy.push(
+                                {
+                                    type: selectedPiece.type,
+                                    player: selectedPiece.player,
+                                    x: x,
+                                    y: y
+                                }
+                            )
+                            console.log (piecesCopy);
+                            setPieces(piecesCopy);
+                            setSelectedPiece(null);
+                            updateBoardBuffer(piecesCopy);
+                        } else {
+                            //this piece cannot make capture moves!
+
+
+
+                            setSelectedPiece(null);
+                            return;
+                        }
                     }
                 } else {
                     //test that we can move to this location

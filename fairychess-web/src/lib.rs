@@ -111,8 +111,8 @@ impl Board {
         self.pieces.len()
     }
 
-    pub fn set_num_pieces(&self, new_size: usize) {
-        todo!()
+    pub fn set_num_pieces(&mut self, new_size: usize) {
+        self.pieces.resize(new_size, Piece::default());
     }
 }
 
