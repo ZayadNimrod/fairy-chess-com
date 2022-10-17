@@ -75,7 +75,7 @@ pub struct Board {
     pieces: Vec<Piece>,
 }
 
-#[wasm_bindgen]
+//#[wasm_bindgen]
 #[derive(Clone, Default)]
 pub struct Piece {
     piece_type: i32,
