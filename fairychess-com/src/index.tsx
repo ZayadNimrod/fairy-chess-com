@@ -1,10 +1,15 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App.tsx'
+import App from './App'
 import './index.css'
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+const r = document.getElementById('root');
+if (r!=null){
+ReactDOM.createRoot(r).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
 )
+}else{
+    console.log("Page root not found!");
+}

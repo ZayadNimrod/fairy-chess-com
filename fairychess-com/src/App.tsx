@@ -58,12 +58,12 @@ function BoardDisplay(props: {
                 {
                     range(props.width).map((e, x) => {
 
-                        const p: Piece | null = function() {
+                        const p: Piece | null = function () {
                             var p_temp: Piece | undefined = props.pieces.find(p => (p.x === x && p.y === y));
                             if (p_temp == undefined) { return null; }
                             else { return p_temp; }
 
-                        }() ;
+                        }();
 
                         return (
                             <Square
@@ -76,10 +76,10 @@ function BoardDisplay(props: {
                                 pieceDefs={props.pieceDefs}
                             />
                         );
-                    }, this)
+                    })
                 }
             </div>);
-    }, this);
+    });
 
     return (<div className="board">
         {b}
@@ -97,8 +97,8 @@ type Piece = {
 
 type PieceDef = {
     name: string,
-    move: MoveGraph,
-    capture: MoveGraph,
+    move: MoveGraph | null,
+    capture: MoveGraph | null,
 }
 
 function App() {
@@ -182,8 +182,22 @@ function App() {
                 }`;
 
 
-                //TODO this is being parsed every render, perhaps move it into the post-WASM-load code
-                const gameData = JSON.parse(data);
+
+                const gameData: {
+                    width: number,
+                    height: number,
+                    pieceDefs: {
+                        name: string,
+                        move: string,
+                        capture: string
+                    }[],
+                    pieces: {
+                        type: string,
+                        player: string,
+                        x: number,
+                        y: number
+                    }[]
+                } = JSON.parse(data);
 
                 setWidth(gameData.width);
                 setHeight(gameData.height);
@@ -191,7 +205,7 @@ function App() {
                 //console.log(wr);
                 setWasmRef(wr);
                 setBufferPointer(Board.new(gameData.width, gameData.height, currentPlayer, pieces.length));
-                const moveDefToPtr = function (d) { //TODO d:string?
+                const moveDefToPtr = function (d: (string | null)) {
                     if (d == null) {
                         return null;
                     } else {
@@ -200,7 +214,7 @@ function App() {
                     }
                 };
 
-                const pieceDefsArray = gameData.pieceDefs.map(
+                const pieceDefsArray: PieceDef[] = gameData.pieceDefs.map(
                     d => {
                         return ({
                             name: d.name,
@@ -226,7 +240,7 @@ function App() {
 
 
 
-    //TODO different check perhaps?
+    //TODO different check than for null perhaps?
     if (wasmRef != null) {
         //TODO this function can be optimised give that if we moved a piece at index i, then the first (i-1) elements are unchanged in newPiecesList and the old one
         const updateBoardBuffer = (newPiecesList: Piece[]) => {
@@ -251,6 +265,7 @@ function App() {
         };
 
         //TODO only do this the FIRST time we enter this block, rather than every render!
+        //maybe move up to the post-wasm-load block?
         updateBoardBuffer(pieces);
 
         const handleClick = (x: number, y: number) => {
@@ -267,31 +282,40 @@ function App() {
                         //check that we can capture the piece at this location
                     }
                 } else {
-                    //TODO test that we can move to this location
-                    console.log(pieceDefs[selectedPiece.type].move);
-                    const path = check_move(pieceDefs[selectedPiece.type].move, bufferPointer!, selectedPiece.x, selectedPiece.y, x, y);
-                    console.log(path);
-                    console.log(path.num_moves());
-                    if (path.num_moves() > 0) {
-                        //the move is valid
-                        //TODO an animation that shows the path?
-                        var piecesCopy = pieces.slice(0, pieces.length);
-                        piecesCopy = piecesCopy.filter((p) => p.x != selectedPiece.x || p.y != selectedPiece.y);
-                        piecesCopy.push(
-                            {
-                                type: selectedPiece.type,
-                                player: selectedPiece.player,
-                                x: x,
-                                y: y
-                            }
-                        )
-                        setPieces(piecesCopy);
-                        setSelectedPiece(null);
+                    //test that we can move to this location
+                    const m = pieceDefs[selectedPiece.type].move;
+                    if (m != null) {
+                        console.log(m);
+                        const path = check_move(m, bufferPointer!, selectedPiece.x, selectedPiece.y, x, y);
+                        console.log(path);
+                        console.log(path.num_moves());
+                        if (path.num_moves() > 0) {
+                            //the move is valid
+                            //TODO an animation that shows the path?
+                            var piecesCopy = pieces.slice(0, pieces.length);
+                            piecesCopy = piecesCopy.filter((p) => p.x != selectedPiece.x || p.y != selectedPiece.y);
+                            piecesCopy.push(
+                                {
+                                    type: selectedPiece.type,
+                                    player: selectedPiece.player,
+                                    x: x,
+                                    y: y
+                                }
+                            )
+                            setPieces(piecesCopy);
+                            setSelectedPiece(null);
 
-                        updateBoardBuffer(piecesCopy);
+                            updateBoardBuffer(piecesCopy);
 
+                        } else {
+                            //move was invalid
+                            setSelectedPiece(null);
+                            return;
+
+                        }
                     } else {
-                        //move was invalid
+                        //This piece cannot move, it can only capture. This is not a capture-move, so it cannot make this move.
+
                         setSelectedPiece(null);
                         return;
 
