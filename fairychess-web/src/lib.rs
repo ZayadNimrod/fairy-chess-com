@@ -19,9 +19,11 @@ pub fn check_move(
     start_position_y: i32,
     target_position_x: i32,
     target_position_y: i32,
+    invert_x:bool,
+    invert_y:bool,
 ) -> Path {
     Path{
-        path:  fairy_chess::check_move(&piece.graph, board, (start_position_x,start_position_y), (target_position_x,target_position_y))
+        path:  fairy_chess::check_move(&piece.graph, board, (start_position_x,start_position_y), (target_position_x,target_position_y),invert_x,invert_y)
     }
 }
 

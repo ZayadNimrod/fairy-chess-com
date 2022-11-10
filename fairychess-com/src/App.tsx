@@ -15,7 +15,6 @@ function range(x: number): number[] {
 }
 
 
-
 function Square(props: {
     key: number,
     x: number
@@ -54,7 +53,7 @@ function BoardDisplay(props: {
     pieceDefs: PieceDef[],
 }) {
 
-    //TODO just realised I'm redering skewed...
+    //TODO just realised I'm rendering skewed...
     const b = range(props.height).map((y, i) => {
         return (
             <div className='board-row' key={y}>
@@ -106,12 +105,6 @@ type PieceDef = {
 
 function App() {
 
-
-
-
-
-
-
     const [pieces, setPieces] = useState<Piece[]>([]);
     const [currentPlayer, setCurrentPlayer] = useState(0);
     const [selectedPiece, setSelectedPiece] = useState<Piece | null>(null);
@@ -125,11 +118,10 @@ function App() {
     const [width, setWidth] = useState<number>(0);
     const [height, setHeight] = useState<number>(0);
 
-    //initilaise the WASM libraray and create the shared memory
+    //initilaise the WASM library and create the shared memory
     useEffect(() => {
         init().then(
             (wr) => {
-                //TODO needs diagonals in king def
                 const data = `{
                     "width": 8,
                     "height":8,
@@ -147,7 +139,7 @@ function App() {
                         {
                             "name": "king",
                             "move": "[1,0]|-/", 
-                            "capture": "[1,0]|-/"
+                            "capture": "{[1,0],[1,1]}|-/"
                         }
                     ],
                     "pieces":[
@@ -230,7 +222,7 @@ function App() {
                 setPieces(gameData.pieces.map(p => {
                     return ({
                         type: gameData.pieceDefs.findIndex(d => p.type === d.name),
-                        player: gameData.pieces.findIndex(d => d.player === p.player),  //TODO black here maps to 2 becuase it is first seen in the THIRD piece - fix this!
+                        player: p.player == "white" ? 0 : 1,//TODO more rigourous method than this
                         x: p.x,
                         y: p.y,
                     })
@@ -268,16 +260,34 @@ function App() {
 
         };
 
+
+        const makeMove = (piecesCopy: Piece[]) => {
+
+            //update 
+            setPieces(piecesCopy);
+            setSelectedPiece(null);
+
+            updateBoardBuffer(piecesCopy);
+
+            //flip player
+            setCurrentPlayer(currentPlayer == 0 ? 1 : 0);
+
+
+        };
+
+
         //TODO only do this the FIRST time we enter this block, rather than every render!
         //maybe move up to the post-wasm-load block?
         updateBoardBuffer(pieces);
 
+
+
         const handleClick = (x: number, y: number) => {
             if (selectedPiece) {
                 //selecting a place to move the piece to
-                const pieceAtLocation = pieces.find(p => (p.x === x && p.y === y));
-                if (pieceAtLocation) {
-                    if (pieceAtLocation.player == selectedPiece.player) {
+                const pieceAtClickedLocation = pieces.find(p => (p.x === x && p.y === y));
+                if (pieceAtClickedLocation) {
+                    if (pieceAtClickedLocation.player == selectedPiece.player) {
                         //we cannot make this move under any circumstance, deselect the piece
                         setSelectedPiece(null);
                         return;
@@ -289,15 +299,15 @@ function App() {
                             //test the piece can capture at to this location
                             console.log("capping");
                             console.log(capMove);
-                            const path = check_move(capMove, bufferPointer!, selectedPiece.x, selectedPiece.y, x, y);
+                            const path = check_move(capMove, bufferPointer!, selectedPiece.x, selectedPiece.y, x, y, false, !(currentPlayer == 0)); //black player needs to invert ys of move.
                             console.log(path);
                             console.log(path.num_moves());
 
                             //TODO an animation that shows the path?
                             var piecesCopy = pieces.slice(0, pieces.length);
-                            
-                            console.log (piecesCopy);
-                            piecesCopy = piecesCopy.filter((p) => (!(p.x == selectedPiece.x && p.y == selectedPiece.y) && !(p.x == pieceAtLocation.x && p.y == pieceAtLocation.y)));
+
+                            console.log(piecesCopy);
+                            piecesCopy = piecesCopy.filter((p) => (!(p.x == selectedPiece.x && p.y == selectedPiece.y) && !(p.x == pieceAtClickedLocation.x && p.y == pieceAtClickedLocation.y)));
                             piecesCopy.push(
                                 {
                                     type: selectedPiece.type,
@@ -306,15 +316,10 @@ function App() {
                                     y: y
                                 }
                             )
-                            console.log (piecesCopy);
-                            setPieces(piecesCopy);
-                            setSelectedPiece(null);
-                            updateBoardBuffer(piecesCopy);
+                            console.log(piecesCopy);
+                            makeMove(piecesCopy);
                         } else {
                             //this piece cannot make capture moves!
-
-
-
                             setSelectedPiece(null);
                             return;
                         }
@@ -324,7 +329,7 @@ function App() {
                     const m = pieceDefs[selectedPiece.type].move;
                     if (m != null) {
                         console.log(m);
-                        const path = check_move(m, bufferPointer!, selectedPiece.x, selectedPiece.y, x, y);
+                        const path = check_move(m, bufferPointer!, selectedPiece.x, selectedPiece.y, x, y, false, !(currentPlayer == 0));  // black player needs to invert ys of move.
                         console.log(path);
                         console.log(path.num_moves());
                         if (path.num_moves() > 0) {
@@ -340,10 +345,8 @@ function App() {
                                     y: y
                                 }
                             )
-                            setPieces(piecesCopy);
-                            setSelectedPiece(null);
 
-                            updateBoardBuffer(piecesCopy);
+                            makeMove(piecesCopy);
 
                         } else {
                             //move was invalid
@@ -383,8 +386,10 @@ function App() {
                     pieces={pieces}
                     handleClick={handleClick}
                     selected={selectedPiece}
-                    pieceDefs={pieceDefs} //TODO this can be null before the WASM is loaded. This breaks everything.
+                    pieceDefs={pieceDefs}
                 />
+
+                <p>Current player: {currentPlayer}</p>
             </div>
         );
 
@@ -398,7 +403,7 @@ function App() {
                     pieces={pieces}
                     handleClick={() => { }}
                     selected={selectedPiece}
-                    pieceDefs={pieceDefs} //TODO this can be null before the WASM is loaded. This breaks everything.
+                    pieceDefs={pieceDefs}
                 />
             </div>
         );
