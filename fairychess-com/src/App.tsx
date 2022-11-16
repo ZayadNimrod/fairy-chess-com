@@ -262,8 +262,6 @@ function App() {
 
 
         const makeMove = (piecesCopy: Piece[]) => {
-
-            //update 
             setPieces(piecesCopy);
             setSelectedPiece(null);
 
@@ -271,15 +269,41 @@ function App() {
 
             //flip player
             setCurrentPlayer(currentPlayer == 0 ? 1 : 0);
-
-
         };
 
+
+        const testAndExecuteMove = (move: MoveGraph | null, pieceToMove: Piece, targetX: number, targetY: number, toKeep: (p: Piece) => boolean) => {
+            if (move != null) {
+                const path = check_move(move, bufferPointer!, pieceToMove.x, pieceToMove.y, targetX, targetY, false, !(currentPlayer == 0));
+                if (path.num_moves() > 0) {
+                    //carry out the move
+
+                    //TODO an animation that shows the path?
+                    var piecesCopy = pieces.slice(0, pieces.length);
+                    piecesCopy = piecesCopy.filter((p) => toKeep(p));
+                    piecesCopy.push(
+                        {
+                            type: pieceToMove.type,
+                            player: pieceToMove.player,
+                            x: targetX,
+                            y: targetY
+                        }
+                    )
+                    makeMove(piecesCopy);
+                } else {
+                    //this is not a valid move, reset the move
+                    setSelectedPiece(null);
+                }
+            } else {
+                //move does not exist!                
+                setSelectedPiece(null);
+
+            }
+        };
 
         //TODO only do this the FIRST time we enter this block, rather than every render!
         //maybe move up to the post-wasm-load block?
         updateBoardBuffer(pieces);
-
 
 
         const handleClick = (x: number, y: number) => {
@@ -290,80 +314,18 @@ function App() {
                     if (pieceAtClickedLocation.player == selectedPiece.player) {
                         //we cannot make this move under any circumstance, deselect the piece
                         setSelectedPiece(null);
-                        return;
                     } else {
-
                         //check that we can capture the piece at this location
                         const capMove = pieceDefs[selectedPiece.type].capture;
-                        if (capMove != null) {
-                            //test the piece can capture at to this location
-                            console.log("capping");
-                            console.log(capMove);
-                            const path = check_move(capMove, bufferPointer!, selectedPiece.x, selectedPiece.y, x, y, false, !(currentPlayer == 0)); //black player needs to invert ys of move.
-                            console.log(path);
-                            console.log(path.num_moves());
+                        //test the piece can capture at to this location, and if so, capture
+                        testAndExecuteMove(capMove, selectedPiece, x, y, (p: Piece) => !(p.x == selectedPiece.x && p.y == selectedPiece.y) && !(p.x == pieceAtClickedLocation.x && p.y == pieceAtClickedLocation.y));
 
-                            //TODO an animation that shows the path?
-                            var piecesCopy = pieces.slice(0, pieces.length);
-
-                            console.log(piecesCopy);
-                            piecesCopy = piecesCopy.filter((p) => (!(p.x == selectedPiece.x && p.y == selectedPiece.y) && !(p.x == pieceAtClickedLocation.x && p.y == pieceAtClickedLocation.y)));
-                            piecesCopy.push(
-                                {
-                                    type: selectedPiece.type,
-                                    player: selectedPiece.player,
-                                    x: x,
-                                    y: y
-                                }
-                            )
-                            console.log(piecesCopy);
-                            makeMove(piecesCopy);
-                        } else {
-                            //this piece cannot make capture moves!
-                            setSelectedPiece(null);
-                            return;
-                        }
                     }
                 } else {
                     //test that we can move to this location
                     const m = pieceDefs[selectedPiece.type].move;
-                    if (m != null) {
-                        console.log(m);
-                        const path = check_move(m, bufferPointer!, selectedPiece.x, selectedPiece.y, x, y, false, !(currentPlayer == 0));  // black player needs to invert ys of move.
-                        console.log(path);
-                        console.log(path.num_moves());
-                        if (path.num_moves() > 0) {
-                            //the move is valid
-                            //TODO an animation that shows the path?
-                            var piecesCopy = pieces.slice(0, pieces.length);
-                            piecesCopy = piecesCopy.filter((p) => p.x != selectedPiece.x || p.y != selectedPiece.y);
-                            piecesCopy.push(
-                                {
-                                    type: selectedPiece.type,
-                                    player: selectedPiece.player,
-                                    x: x,
-                                    y: y
-                                }
-                            )
-
-                            makeMove(piecesCopy);
-
-                        } else {
-                            //move was invalid
-                            setSelectedPiece(null);
-                            return;
-
-                        }
-                    } else {
-                        //This piece cannot move, it can only capture. This is not a capture-move, so it cannot make this move.
-
-                        setSelectedPiece(null);
-                        return;
-
-                    }
-
+                    testAndExecuteMove(m, selectedPiece, x, y, (p: Piece) => p.x != selectedPiece.x || p.y != selectedPiece.y);
                 }
-
 
             } else {
                 //We are selecting a piece to move
@@ -408,11 +370,6 @@ function App() {
             </div>
         );
     }
-
-
-
-
-
 
 
 
