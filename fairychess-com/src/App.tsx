@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import './App.css';
 import init, { Board, MoveGraph, Path, check_move, InitOutput } from "fairychess-web";
 import React from 'react';
+import { Piece, PieceDef, testAndExecuteMove } from './lib'
+
 
 //TODO use https://reactjs.org/docs/context.html so we don't need to pass PieceDefs all the time
 
@@ -33,8 +35,6 @@ function Square(props: {
         >
 
             {props.piece ? props.pieceDefs[props.piece.type].name + "\n(" + props.piece.player + ")" : ""}
-
-
 
         </div>
     )
@@ -90,18 +90,7 @@ function BoardDisplay(props: {
 
 }
 
-type Piece = {
-    type: number,
-    player: number,
-    x: number,
-    y: number,
-}
 
-type PieceDef = {
-    name: string,
-    move: MoveGraph | null,
-    capture: MoveGraph | null,
-}
 
 function App() {
 
@@ -191,6 +180,7 @@ function App() {
                         player: string,
                         x: number,
                         y: number
+                        goal: boolean
                     }[]
                 } = JSON.parse(data);
 
@@ -225,6 +215,7 @@ function App() {
                         player: p.player == "white" ? 0 : 1,//TODO more rigourous method than this
                         x: p.x,
                         y: p.y,
+                        goal: p.goal,
                     })
                 }));
                 setPieceDefs(pieceDefsArray);
@@ -261,6 +252,15 @@ function App() {
         };
 
 
+        //TODO only do this the FIRST time we enter this block, rather than every render!
+        //maybe move up to the post-wasm-load block?
+        updateBoardBuffer(pieces);
+
+
+
+
+
+
         const makeMove = (piecesCopy: Piece[]) => {
             setPieces(piecesCopy);
             setSelectedPiece(null);
@@ -272,59 +272,15 @@ function App() {
         };
 
 
-        const testAndExecuteMove = (move: MoveGraph | null, pieceToMove: Piece, targetX: number, targetY: number, toKeep: (p: Piece) => boolean) => {
-            if (move != null) {
-                const path = check_move(move, bufferPointer!, pieceToMove.x, pieceToMove.y, targetX, targetY, false, !(currentPlayer == 0));
-                if (path.num_moves() > 0) {
-                    //carry out the move
-
-                    //TODO an animation that shows the path?
-                    var piecesCopy = pieces.slice(0, pieces.length);
-                    piecesCopy = piecesCopy.filter((p) => toKeep(p));
-                    piecesCopy.push(
-                        {
-                            type: pieceToMove.type,
-                            player: pieceToMove.player,
-                            x: targetX,
-                            y: targetY
-                        }
-                    )
-                    makeMove(piecesCopy);
-                } else {
-                    //this is not a valid move, reset the move
-                    setSelectedPiece(null);
-                }
-            } else {
-                //move does not exist!                
-                setSelectedPiece(null);
-
-            }
-        };
-
-        //TODO only do this the FIRST time we enter this block, rather than every render!
-        //maybe move up to the post-wasm-load block?
-        updateBoardBuffer(pieces);
-
-
         const handleClick = (x: number, y: number) => {
             if (selectedPiece) {
                 //selecting a place to move the piece to
-                const pieceAtClickedLocation = pieces.find(p => (p.x === x && p.y === y));
-                if (pieceAtClickedLocation) {
-                    if (pieceAtClickedLocation.player == selectedPiece.player) {
-                        //we cannot make this move under any circumstance, deselect the piece
-                        setSelectedPiece(null);
-                    } else {
-                        //check that we can capture the piece at this location
-                        const capMove = pieceDefs[selectedPiece.type].capture;
-                        //test the piece can capture at to this location, and if so, capture
-                        testAndExecuteMove(capMove, selectedPiece, x, y, (p: Piece) => !(p.x == selectedPiece.x && p.y == selectedPiece.y) && !(p.x == pieceAtClickedLocation.x && p.y == pieceAtClickedLocation.y));
-
-                    }
+                const wasMoveSuccessful: boolean = testAndExecuteMove(selectedPiece, x, y, pieces, pieceDefs, bufferPointer!, makeMove);
+                if (wasMoveSuccessful) {
+                    //testAndExecute move has exectued the move
                 } else {
-                    //test that we can move to this location
-                    const m = pieceDefs[selectedPiece.type].move;
-                    testAndExecuteMove(m, selectedPiece, x, y, (p: Piece) => p.x != selectedPiece.x || p.y != selectedPiece.y);
+                    //move could not be made, so deselect the piece to allow player to make a new selection
+                    setSelectedPiece(null);
                 }
 
             } else {
