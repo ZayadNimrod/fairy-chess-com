@@ -1,10 +1,16 @@
-import { Board, MoveGraph, Path, check_move, InitOutput } from "fairychess-web";
+import { Board, MoveGraph, Path, check_move } from "fairychess-web";
+
+
+
+export type Position = {
+    x: number,
+    y: number
+}
 
 export type Piece = {
     type: number,
     player: number,
-    x: number,
-    y: number,
+    position: Position,
     goal: boolean,
 }
 
@@ -44,9 +50,8 @@ const isThisPlayerInCheck = (playerId: number, pieces: Piece[], width: number, h
             if (captureMove == null) { continue; }
 
 
-            //TODO revert this commenting out
 
-            const path = check_move(captureMove, temporaryBufferPtr, otherPiece.x, otherPiece.y, pieceToCheck.x, pieceToCheck.y, false, otherPlayer == 1);
+            const path = check_move(captureMove, temporaryBufferPtr, otherPiece.position.x, otherPiece.position.y, pieceToCheck.position.x, pieceToCheck.position.y, false, otherPlayer == 1);
 
             if (path.num_moves() > 0) {
                 //!!!The current player would be placed in check if they made this move!!!
@@ -62,9 +67,9 @@ const isThisPlayerInCheck = (playerId: number, pieces: Piece[], width: number, h
 };
 
 
-export function testAndExecuteMove(pieceToMove: Piece, targetX: number, targetY: number, pieces: Piece[], pieceDefs: PieceDef[], boardBufferPointer: Board, makeMove: (ps: Piece[]) => void): boolean {
+export function testAndExecuteMove(pieceToMove: Piece, target: Position, pieces: Piece[], pieceDefs: PieceDef[], boardBufferPointer: Board, makeMove: (ps: Piece[], source: Position, destination: Position) => void): boolean {
     const currentPlayer = pieceToMove.player;
-    const pieceAtClickedLocation = pieces.find(p => (p.x === targetX && p.y === targetY));
+    const pieceAtClickedLocation = pieces.find(p => (p.position === target));
 
 
 
@@ -80,12 +85,12 @@ export function testAndExecuteMove(pieceToMove: Piece, targetX: number, targetY:
         } else {
             //this is a capture
             move = pieceDefs[pieceToMove.type].capture;
-            toKeep = (p: Piece) => !(p.x == pieceToMove.x && p.y == pieceToMove.y) && !(p.x == pieceAtClickedLocation.x && p.y == pieceAtClickedLocation.y)
+            toKeep = (p: Piece) => !(p.position == pieceToMove.position) && !(p.position == pieceAtClickedLocation.position)
         }
     } else {
         //this is an ordinary move
         move = pieceDefs[pieceToMove.type].move;
-        toKeep = (p: Piece) => p.x != pieceToMove.x || p.y != pieceToMove.y;
+        toKeep = (p: Piece) => p.position != pieceToMove.position;
     }
 
 
@@ -94,7 +99,7 @@ export function testAndExecuteMove(pieceToMove: Piece, targetX: number, targetY:
 
 
     if (move != null) {
-        const path = check_move(move, boardBufferPointer!, pieceToMove.x, pieceToMove.y, targetX, targetY, false, !(currentPlayer == 0));
+        const path = check_move(move, boardBufferPointer!, pieceToMove.position.x, pieceToMove.position.y, target.x, target.y, false, !(currentPlayer == 0));
         if (path.num_moves() > 0) {
             //carry out the move
 
@@ -105,14 +110,13 @@ export function testAndExecuteMove(pieceToMove: Piece, targetX: number, targetY:
                 {
                     type: pieceToMove.type,
                     player: pieceToMove.player,
-                    x: targetX,
-                    y: targetY,
+                    position: target,
                     goal: pieceToMove.goal,
                 }
             );
 
             if (!isThisPlayerInCheck(currentPlayer, piecesCopy, boardBufferPointer.width(), boardBufferPointer.height(), pieceDefs)) {
-                makeMove(piecesCopy);
+                makeMove(piecesCopy, pieceToMove.position, target);
                 return true;
             } else {
                 //the current player would be placed in check if they made this move,
@@ -129,4 +133,6 @@ export function testAndExecuteMove(pieceToMove: Piece, targetX: number, targetY:
         return false;
 
     }
+
+    //the above could have been a Maybe monad lol, look at all the return false statements
 };

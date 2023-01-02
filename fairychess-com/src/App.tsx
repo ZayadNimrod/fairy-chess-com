@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import './App.css';
 import init, { Board, MoveGraph, Path, check_move, InitOutput } from "fairychess-web";
-import React from 'react';
-import { Piece, PieceDef, testAndExecuteMove } from './lib'
+import * as React from "react";
+import { Piece, PieceDef, Position, testAndExecuteMove } from './chess_lib'
+import { WEB_SOCKET_SERVER_PORT, WEB_SOCKET_SERVER_URL } from './net_lib';
 
 
 //TODO use https://reactjs.org/docs/context.html so we don't need to pass PieceDefs all the time
@@ -61,7 +62,7 @@ function BoardDisplay(props: {
                     range(props.width).reverse().map((x, j) => {
 
                         const p: Piece | null = function () {
-                            var p_temp: Piece | undefined = props.pieces.find(p => (p.x === x && p.y === y));
+                            var p_temp: Piece | undefined = props.pieces.find(p => (p.position.x === x && p.position.y === y));
                             if (p_temp == undefined) { return null; }
                             else { return p_temp; }
 
@@ -106,6 +107,9 @@ function App() {
 
     const [width, setWidth] = useState<number>(0);
     const [height, setHeight] = useState<number>(0);
+
+    const socket = new WebSocket(`ws://${WEB_SOCKET_SERVER_URL}/${WEB_SOCKET_SERVER_PORT}`);
+
 
     //initilaise the WASM library and create the shared memory
     useEffect(() => {
@@ -213,8 +217,7 @@ function App() {
                     return ({
                         type: gameData.pieceDefs.findIndex(d => p.type === d.name),
                         player: p.player == "white" ? 0 : 1,//TODO more rigourous method than this
-                        x: p.x,
-                        y: p.y,
+                        position: { x: p.x, y: p.y },
                         goal: p.goal,
                     })
                 }));
@@ -242,8 +245,8 @@ function App() {
                 const newPiece = newPiecesList[i];
                 boardBuffer[baseIndex] = newPiece.type;
                 boardBuffer[baseIndex + 1] = newPiece.player;
-                boardBuffer[baseIndex + 2] = newPiece.x;
-                boardBuffer[baseIndex + 3] = newPiece.y;
+                boardBuffer[baseIndex + 2] = newPiece.position.x;
+                boardBuffer[baseIndex + 3] = newPiece.position.y;
             }
 
             //log the shared buffer
@@ -261,7 +264,12 @@ function App() {
 
 
 
-        const makeMove = (piecesCopy: Piece[]) => {
+        const makeMove = (piecesCopy: Piece[], source: Position, target: Position) => {
+            //TODO send the move to the server
+
+            socket.send("Made a move!");
+
+
             setPieces(piecesCopy);
             setSelectedPiece(null);
 
@@ -273,9 +281,10 @@ function App() {
 
 
         const handleClick = (x: number, y: number) => {
+            const clickedPos: Position = { x: x, y: y };
             if (selectedPiece) {
                 //selecting a place to move the piece to
-                const wasMoveSuccessful: boolean = testAndExecuteMove(selectedPiece, x, y, pieces, pieceDefs, bufferPointer!, makeMove);
+                const wasMoveSuccessful: boolean = testAndExecuteMove(selectedPiece, clickedPos, pieces, pieceDefs, bufferPointer!, makeMove);
                 if (wasMoveSuccessful) {
                     //testAndExecute move has exectued the move
                 } else {
@@ -285,7 +294,7 @@ function App() {
 
             } else {
                 //We are selecting a piece to move
-                const pieceAtLocation = pieces.find(p => (p.x === x && p.y === y && p.player == currentPlayer));
+                const pieceAtLocation = pieces.find(p => (p.position === clickedPos && p.player == currentPlayer));
                 if (pieceAtLocation) {
                     setSelectedPiece(pieceAtLocation);
                 } else {
