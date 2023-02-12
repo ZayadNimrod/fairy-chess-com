@@ -108,7 +108,7 @@ function App() {
     const [width, setWidth] = useState<number>(0);
     const [height, setHeight] = useState<number>(0);
 
-    const socket = new WebSocket(`ws://${WEB_SOCKET_SERVER_URL}/${WEB_SOCKET_SERVER_PORT}`);
+    const [socket,setsocket] = useState<WebSocket> (new WebSocket(`ws://${WEB_SOCKET_SERVER_URL}/${WEB_SOCKET_SERVER_PORT}`));
 
 
     //initilaise the WASM library and create the shared memory

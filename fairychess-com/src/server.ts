@@ -1,7 +1,7 @@
 
-import * as WebSocket from 'ws';
+//import  {WebSocket} from 'ws';
 import { WEB_SOCKET_SERVER_PORT ,WEB_SERVER_PORT} from "./net_lib";
-import * as http from "http";
+import * as http from "node:http";
 
 
 
@@ -20,7 +20,7 @@ var webserver = http.createServer(function(req:http.IncomingMessage,res:http.Ser
 });
 webserver.listen(WEB_SERVER_PORT);
 
-
+/*
 const server = new WebSocket.Server({
     port: WEB_SOCKET_SERVER_PORT
 });
@@ -52,7 +52,7 @@ server.on('connection', function (socket: WebSocket) {
     });
 
 });
-
+*/
 
 console.log("Started FC server...");
 
