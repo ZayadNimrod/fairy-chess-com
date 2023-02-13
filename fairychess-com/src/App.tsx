@@ -4,7 +4,7 @@ import init, { Board, MoveGraph, Path, check_move, InitOutput } from "fairychess
 import * as React from "react";
 import { Piece, PieceDef, Position, testAndExecuteMove } from './chess_lib'
 import { WEB_SOCKET_SERVER_PORT, WEB_SOCKET_SERVER_URL } from './net_lib';
-
+//import { WebSocket } from 'ws';
 
 //TODO use https://reactjs.org/docs/context.html so we don't need to pass PieceDefs all the time
 
@@ -108,7 +108,7 @@ function App() {
     const [width, setWidth] = useState<number>(0);
     const [height, setHeight] = useState<number>(0);
 
-    const [socket,setsocket] = useState<WebSocket> (new WebSocket(`ws://${WEB_SOCKET_SERVER_URL}/${WEB_SOCKET_SERVER_PORT}`));
+    const [socket,setsocket] = useState<WebSocket> (new WebSocket(`ws://${WEB_SOCKET_SERVER_URL}:${WEB_SOCKET_SERVER_PORT}`));
 
 
     //initilaise the WASM library and create the shared memory
@@ -277,6 +277,8 @@ function App() {
 
             //flip player
             setCurrentPlayer(currentPlayer == 0 ? 1 : 0);
+
+            return true;
         };
 
 
@@ -287,14 +289,15 @@ function App() {
                 const wasMoveSuccessful: boolean = testAndExecuteMove(selectedPiece, clickedPos, pieces, pieceDefs, bufferPointer!, makeMove);
                 if (wasMoveSuccessful) {
                     //testAndExecute move has exectued the move
-                } else {
+                } else {//TODO get reason move could not be made
                     //move could not be made, so deselect the piece to allow player to make a new selection
                     setSelectedPiece(null);
                 }
 
             } else {
                 //We are selecting a piece to move
-                const pieceAtLocation = pieces.find(p => (p.position === clickedPos && p.player == currentPlayer));
+                //TODO so all of a sudden this comparision doesn't work. what the fuck?
+                const pieceAtLocation = pieces.find(p => (p.position.x == clickedPos.x && p.position.y == clickedPos.y && p.player == currentPlayer));
                 if (pieceAtLocation) {
                     setSelectedPiece(pieceAtLocation);
                 } else {

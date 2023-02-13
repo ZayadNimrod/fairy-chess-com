@@ -55,7 +55,7 @@ const clientconfig = {
     output: {
         filename: '[name].[contenthash].bundle.js', //filename: '[name].[contenthash].js',
         path: path.resolve(__dirname, 'build'),
-        clean: true,
+        //clean: true, if this is set to true than it deletes our new server program
     },
 }
 
@@ -96,6 +96,12 @@ const serverconfig = {
             },*/
         ],
     },
+    externals: [
+        {
+          'utf-8-validate': 'commonjs utf-8-validate',
+          bufferutil: 'commonjs bufferutil',
+        },
+      ],
 
     resolve: {
         extensions: ['.tsx', '.ts', '.js'],

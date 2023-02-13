@@ -67,7 +67,8 @@ const isThisPlayerInCheck = (playerId: number, pieces: Piece[], width: number, h
 };
 
 
-export function testAndExecuteMove(pieceToMove: Piece, target: Position, pieces: Piece[], pieceDefs: PieceDef[], boardBufferPointer: Board, makeMove: (ps: Piece[], source: Position, destination: Position) => void): boolean {
+
+export function testAndExecuteMove(pieceToMove: Piece, target: Position, pieces: Piece[], pieceDefs: PieceDef[], boardBufferPointer: Board, makeMove: (ps: Piece[], source: Position, destination: Position) => boolean): boolean {
     const currentPlayer = pieceToMove.player;
     const pieceAtClickedLocation = pieces.find(p => (p.position === target));
 
@@ -116,8 +117,8 @@ export function testAndExecuteMove(pieceToMove: Piece, target: Position, pieces:
             );
 
             if (!isThisPlayerInCheck(currentPlayer, piecesCopy, boardBufferPointer.width(), boardBufferPointer.height(), pieceDefs)) {
-                makeMove(piecesCopy, pieceToMove.position, target);
-                return true;
+                return makeMove(piecesCopy, pieceToMove.position, target);
+                
             } else {
                 //the current player would be placed in check if they made this move,
                 //so it is illegal
