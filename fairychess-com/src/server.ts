@@ -31,15 +31,15 @@ var webserver = http.createServer(function (req: http.IncomingMessage, res: http
 
             fs.readFile(__dirname + req.url).then(contents => {
                 console.log(`serving resource ${req.url}`);
-                var contentType: string = "";
+                var content_type: string = "";
                 if (req.url.endsWith(".js")) {
-                    contentType = "text/javascript";
+                    content_type = "text/javascript";
                 } else if (req.url.endsWith(".wasm")) {
-                    contentType = "application/wasm";
+                    content_type = "application/wasm";
                 } else if (req.url.endsWith(".css")) {
-                    contentType = "text/css";
+                    content_type = "text/css";
                 }
-                res.setHeader("Content-Type", contentType);
+                res.setHeader("Content-Type", content_type);
                 res.writeHead(200);
                 res.end(contents);
                 return;
@@ -65,17 +65,17 @@ type Game = {
     black: WebSocket
 }
 
-let sockets: WebSocket[] = [];
+let open_sockets: WebSocket[] = [];
 
 console.log("starting chess server...");
 
-const websocketServer = new WebSocketServer({
+const socket_server = new WebSocketServer({
     port: WEB_SOCKET_SERVER_PORT
 });
 
-websocketServer.on('connection', function connection(socket: WebSocket) {
-    console.log(`created a socket connection with ${socket}, now have ${sockets.length} open`);
-    sockets.push(socket);
+socket_server.on('connection', function connection(socket: WebSocket) {
+    console.log(`created a socket connection with ${socket}, now have ${open_sockets.length} open`);
+    open_sockets.push(socket);
 
     socket.on('message', function message(msg: string) {
         //TODO
@@ -86,7 +86,7 @@ websocketServer.on('connection', function connection(socket: WebSocket) {
 
     // When a socket closes, or disconnects, remove it from the array.
     socket.on('close', function () {
-        sockets = sockets.filter(s => s !== socket);
+        open_sockets = open_sockets.filter(s => s !== socket);
         console.log("closed connection");
     });
 
